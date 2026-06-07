@@ -32,10 +32,13 @@ pub struct Step {
 }
 
 impl StepContext {
-    #[allow(unused_variables)]
     pub fn new(tasks: &HashSet<TaskKey>) -> Self {
         println!("Tasks:");
+        Self::new_with_mp(tasks, MultiProgress::new(), "")
+    }
 
+    #[allow(unused_variables)]
+    pub fn new_with_mp(tasks: &HashSet<TaskKey>, mp: MultiProgress, prefix: &str) -> Self {
         let mut steps = vec![
             Step {
                 desc: "Generate plan".to_string(),
@@ -88,28 +91,36 @@ impl StepContext {
                 progress_bar: ProgressBar::new_spinner(),
                 disabled: !tasks.contains(&TaskKey::RunPex) && !tasks.contains(&TaskKey::All),
             },
-            #[cfg(feature = "commercial")]
             Step {
                 desc: "Generate LIB".to_string(),
                 key: TaskKey::GenerateLib,
                 progress_bar: ProgressBar::new_spinner(),
+                #[cfg(not(feature = "commercial"))]
+                disabled: !tasks.contains(&TaskKey::GenerateLib),
+                #[cfg(feature = "commercial")]
                 disabled: !tasks.contains(&TaskKey::GenerateLib) && !tasks.contains(&TaskKey::All),
             },
         ];
-        let mp = MultiProgress::new();
+
         let num_steps = steps.iter().filter(|step| !step.disabled).count();
         let mut counter = 0;
         let width = format!("{num_steps}").len();
-        for (i, step) in steps.iter_mut().enumerate() {
-            mp.insert(i + 1, step.progress_bar.clone());
+        let prefix_str = if prefix.is_empty() {
+            String::new()
+        } else {
+            format!("[{}] ", prefix)
+        };
+
+        for step in steps.iter_mut() {
+            mp.add(step.progress_bar.clone());
             if step.disabled {
-                let msg = Some(format!("[-/-] {}", step.desc));
+                let msg = Some(format!("{}[-/-] {}", prefix_str, step.desc));
                 step.set_status(StepStatus::Disabled, msg);
             } else {
                 counter += 1;
                 let msg = Some(format!(
-                    "[{:width$}/{:width$}] {}",
-                    counter, num_steps, step.desc
+                    "{}[{:width$}/{:width$}] {}",
+                    prefix_str, counter, num_steps, step.desc
                 ));
                 step.set_status(StepStatus::Pending, msg);
             }
@@ -151,9 +162,7 @@ impl StepContext {
                     self.advance();
                 }
             }
-            println!("\n");
         }
-
         res
     }
 
@@ -181,8 +190,15 @@ impl StepContext {
         }
     }
 
-    pub fn done(&mut self) {
-        println!("\n\nCompleted all tasks");
+    pub fn done(&mut self) {}
+
+    /// Finalize all bars as static terminal output. Call only after all
+    /// concurrent contexts are fully done, so no bar is committed while
+    /// another still shows an in-progress spinner.
+    pub fn commit(&mut self) {
+        for step in &self.steps {
+            step.progress_bar.finish();
+        }
     }
 }
 
@@ -217,7 +233,11 @@ impl Step {
             self.progress_bar
                 .enable_steady_tick(Duration::from_millis(200));
         } else if status != StepStatus::Pending {
-            self.progress_bar.finish();
+            // Stop the spinner and redraw in-place with the new style, but do
+            // NOT call finish() — that would commit this bar as a static line
+            // immediately, causing ghost snapshots of other live bars.
+            self.progress_bar.disable_steady_tick();
+            self.progress_bar.tick();
         }
     }
 }

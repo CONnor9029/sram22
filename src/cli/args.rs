@@ -22,7 +22,7 @@ pub struct Args {
     pub output_dir: Option<PathBuf>,
 
     /// Generate LIB (setup, hold, and delay timing information).
-    #[cfg(feature = "commercial")]
+    /// Uses Liberate MX with the `commercial` feature, otherwise uses the open-source lib generator.
     #[arg(long)]
     pub lib: bool,
 

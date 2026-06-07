@@ -27,6 +27,8 @@ If you have BWRC access, you can install all features of SRAM22. Make sure that 
 ```
 [net]
 git-fetch-with-cli = true
+[registries]
+substrate = { index = "https://github.com/substrate-labs/crates-index" }
 ```
 
 You can then install SRAM22 using the following commands:

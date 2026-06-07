@@ -6,10 +6,12 @@ use crate::{setup_ctx, Result};
 use anyhow::bail;
 use std::collections::HashSet;
 use std::path::Path;
+use std::sync::Arc;
 
 /// A concrete plan for an SRAM.
 ///
 /// Has a 1-1 mapping with a schematic.
+#[derive(Clone)]
 pub struct SramPlan {
     pub sram_params: SramParams,
 }
@@ -27,7 +29,6 @@ pub enum TaskKey {
     RunLvs,
     #[cfg(feature = "commercial")]
     RunPex,
-    #[cfg(feature = "commercial")]
     GenerateLib,
     #[cfg(feature = "commercial")]
     All,
@@ -36,7 +37,7 @@ pub enum TaskKey {
 pub struct ExecutePlanParams<'a> {
     pub work_dir: &'a Path,
     pub plan: &'a SramPlan,
-    pub tasks: &'a HashSet<TaskKey>,
+    pub tasks: Arc<HashSet<TaskKey>>,
     pub ctx: Option<&'a mut StepContext>,
     #[cfg(feature = "commercial")]
     pub pex_level: Option<calibre::pex::PexLevel>,
@@ -283,5 +284,37 @@ pub fn execute_plan(params: ExecutePlanParams) -> Result<()> {
             ctx
         );
     }
+
+    if params.tasks.contains(&TaskKey::GenerateLib) {
+        use crate::lib_gen::{LibGenParams, LookupModel, PvtCorner};
+        if plan.sram_params.data_width() > 128 {
+            eprintln!(
+                "warning: lib generation is only supported for data_width ≤ 128 \
+                 in non-commercial mode (got {}); skipping",
+                plan.sram_params.data_width()
+            );
+        } else {
+            let json_bytes: &[u8] = match (plan.sram_params.mux_ratio(), plan.sram_params.num_words()) {
+                (8, _) => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/lib_timing_data_m8.json")),
+                (_, 256) => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/lib_timing_data_256m4.json")),
+                _ => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/lib_timing_data.json")),
+            };
+            for pvt in [PvtCorner::tt(), PvtCorner::ss(), PvtCorner::ff()] {
+                let model = LookupModel::from_json(json_bytes, &pvt.name)?;
+                let suffix = pvt.file_suffix();
+                let lib_name = format!("{}_{}", name, suffix);
+                let lib_path = crate::paths::out_lib(work_dir, &lib_name);
+                crate::lib_gen::generate_sram_lib(&LibGenParams {
+                    sram: &plan.sram_params,
+                    pvt,
+                    model: &model,
+                    output: lib_path,
+                })?;
+            }
+            #[cfg(not(feature = "commercial"))]
+            try_finish_task!(ctx, TaskKey::GenerateLib);
+        }
+    }
+
     Ok(())
 }

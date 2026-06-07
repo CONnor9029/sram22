@@ -1,31 +1,42 @@
 use std::collections::HashSet;
 use std::fs::canonicalize;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use clap::Parser;
 
-use crate::blocks::sram::parse_sram_config;
+use indicatif::MultiProgress;
+
+use crate::blocks::sram::parse_sram_batch_config;
 use crate::cli::args::Args;
 use crate::cli::progress::StepContext;
-use crate::plan::{execute_plan, generate_plan, ExecutePlanParams, TaskKey};
+use crate::paths::{out_gds, out_lef, out_spice, out_verilog};
+use crate::plan::{execute_plan, generate_plan, ExecutePlanParams, SramPlan, TaskKey};
 use crate::Result;
 
 pub mod args;
 pub mod progress;
 
 pub const BANNER: &str = r"
- ________  ________  ________  _____ ______     _______   _______     
-|\   ____\|\   __  \|\   __  \|\   _ \  _   \  /  ___  \ /  ___  \    
-\ \  \___|\ \  \|\  \ \  \|\  \ \  \\\__\ \  \/__/|_/  //__/|_/  /|   
- \ \_____  \ \   _  _\ \   __  \ \  \\|__| \  \__|//  / /__|//  / /   
-  \|____|\  \ \  \\  \\ \  \ \  \ \  \    \ \  \  /  /_/__  /  /_/__  
+ ________  ________  ________  _____ ______     _______   _______
+|\   ____\|\   __  \|\   __  \|\   _ \  _   \  /  ___  \ /  ___  \
+\ \  \___|\ \  \|\  \ \  \|\  \ \  \\\__\ \  \/__/|_/  //__/|_/  /|
+ \ \_____  \ \   _  _\ \   __  \ \  \\|__| \  \__|//  / /__|//  / /
+  \|____|\  \ \  \\  \\ \  \ \  \ \  \    \ \  \  /  /_/__  /  /_/__
     ____\_\  \ \__\\ _\\ \__\ \__\ \__\    \ \__\|\________\\________\
    |\_________\|__|\|__|\|__|\|__|\|__|     \|__| \|_______|\|_______|
-   \|_________|                                                       
-                                                                      
-                                                                      
+   \|_________|
+
+
 SRAM22 v0.2
 ";
+
+fn is_already_built(work_dir: &std::path::Path, name: &str) -> bool {
+    out_spice(work_dir, name).exists()
+        && out_gds(work_dir, name).exists()
+        && out_verilog(work_dir, name).exists()
+        && out_lef(work_dir, name).exists()
+}
 
 pub fn run() -> Result<()> {
     let args = Args::parse();
@@ -35,14 +46,19 @@ pub fn run() -> Result<()> {
     println!("{BANNER}");
 
     println!("Reading configuration file...\n");
-    let config = parse_sram_config(&config_path)?;
+    let configs = parse_sram_batch_config(&config_path)?;
 
-    println!("Configuration file: {:?}", &config_path);
-    println!("SRAM parameters:");
-    println!("\tNumber of words: {}", config.num_words);
-    println!("\tData width: {}", config.data_width);
-    println!("\tMux ratio: {}", config.mux_ratio as usize);
-    println!("\tWrite size: {}", config.write_size);
+    let config_dir = config_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Config path has no parent directory"))?;
+
+    let build_dir = if let Some(output_dir) = args.output_dir {
+        output_dir
+    } else {
+        config_dir.join("build")
+    };
+    std::fs::create_dir_all(&build_dir)?;
+    let build_dir = canonicalize(build_dir)?;
 
     let enabled_tasks = vec![
         #[cfg(feature = "commercial")]
@@ -51,10 +67,9 @@ pub fn run() -> Result<()> {
         (args.lvs, TaskKey::RunLvs),
         #[cfg(feature = "commercial")]
         (
-            args.pex || (args.lib && config.pex_level.is_some()),
+            args.pex || (configs.len() == 1 && args.lib && configs[0].pex_level.is_some()),
             TaskKey::RunPex,
         ),
-        #[cfg(feature = "commercial")]
         (args.lib, TaskKey::GenerateLib),
         #[cfg(feature = "commercial")]
         (args.all, TaskKey::All),
@@ -62,32 +77,130 @@ pub fn run() -> Result<()> {
     .into_iter()
     .filter_map(|(a, b)| if a { Some(b) } else { None });
 
-    let tasks = HashSet::from_iter(enabled_tasks);
+    let tasks = Arc::new(HashSet::from_iter(enabled_tasks));
 
-    let mut ctx = StepContext::new(&tasks);
+    if configs.len() == 1 {
+        let config = &configs[0];
 
-    let plan = ctx.check(generate_plan(&config))?;
-    ctx.finish(TaskKey::GeneratePlan);
+        println!("Configuration file: {:?}", &config_path);
+        println!("SRAM parameters:");
+        println!("\tNumber of words: {}", config.num_words);
+        println!("\tData width: {}", config.data_width);
+        println!("\tMux ratio: {}", config.mux_ratio as usize);
+        println!("\tWrite size: {}", config.write_size);
 
-    let work_dir = if let Some(output_dir) = args.output_dir {
-        output_dir
+        let plan = generate_plan(config)?;
+
+        let work_dir = build_dir.join(plan.sram_params.name().as_str());
+        std::fs::create_dir_all(&work_dir)?;
+        let work_dir = canonicalize(work_dir)?;
+
+        if !is_already_built(&work_dir, &plan.sram_params.name()) {
+            let mut ctx = StepContext::new(&tasks);
+            ctx.finish(TaskKey::GeneratePlan);
+
+            let res = execute_plan(ExecutePlanParams {
+                work_dir: &work_dir,
+                plan: &plan,
+                tasks: Arc::clone(&tasks),
+                ctx: Some(&mut ctx),
+                #[cfg(feature = "commercial")]
+                pex_level: config.pex_level,
+            });
+            ctx.check(res)?;
+            ctx.commit();
+            println!("Artifacts saved to: {:?}\n", &work_dir);
+        }
     } else {
-        PathBuf::from(plan.sram_params.name().as_str())
-    };
-    std::fs::create_dir_all(&work_dir)?;
-    let work_dir = canonicalize(work_dir)?;
+        println!("Batch mode: {} SRAMs\n", configs.len());
 
-    let res = execute_plan(ExecutePlanParams {
-        work_dir: &work_dir,
-        plan: &plan,
-        tasks: &tasks,
-        ctx: Some(&mut ctx),
-        #[cfg(feature = "commercial")]
-        pex_level: config.pex_level,
-    });
+        let plans: Vec<SramPlan> = configs
+            .iter()
+            .map(|c| generate_plan(c))
+            .collect::<Result<Vec<_>>>()?;
 
-    ctx.check(res)?;
-    println!("Artifacts saved to: {:?}\n", &work_dir);
+        for (i, (config, plan)) in configs.iter().zip(plans.iter()).enumerate() {
+            println!(
+                "  [{}] {} (num_words={}, data_width={}, mux_ratio={}, write_size={})",
+                i + 1,
+                plan.sram_params.name(),
+                config.num_words,
+                config.data_width,
+                config.mux_ratio as usize,
+                config.write_size,
+            );
+        }
+        println!();
+
+        let mp = MultiProgress::new();
+
+        let handles: Vec<_> = plans
+            .into_iter()
+            .zip(configs.into_iter())
+            .filter_map(|(plan, config)| {
+                let work_dir_check = build_dir.join(plan.sram_params.name().as_str());
+                if is_already_built(&work_dir_check, &plan.sram_params.name()) {
+                    return None;
+                }
+
+                let mut ctx = StepContext::new_with_mp(&tasks, mp.clone(), &plan.sram_params.name());
+                ctx.finish(TaskKey::GeneratePlan);
+
+                let tasks = Arc::clone(&tasks);
+                let build_dir = build_dir.clone();
+                Some(std::thread::spawn(move || -> (Result<PathBuf>, StepContext) {
+                    let result = (|| -> Result<PathBuf> {
+                        let work_dir = build_dir.join(plan.sram_params.name().as_str());
+                        std::fs::create_dir_all(&work_dir)?;
+                        let work_dir = canonicalize(work_dir)?;
+                        let res = execute_plan(ExecutePlanParams {
+                            work_dir: &work_dir,
+                            plan: &plan,
+                            tasks,
+                            ctx: Some(&mut ctx),
+                            #[cfg(feature = "commercial")]
+                            pex_level: config.pex_level,
+                        });
+                        ctx.check(res)?;
+                        Ok(work_dir)
+                    })();
+                    (result, ctx)
+                }))
+            })
+            .collect();
+
+        // Join ALL threads first, then commit ALL progress bars together to avoid
+        // ghost snapshots that appear when one bar finishes while others are live.
+        let joined: Vec<_> = handles.into_iter().map(|h| h.join()).collect();
+        let mut errors: Vec<anyhow::Error> = Vec::new();
+        let mut work_dirs: Vec<PathBuf> = Vec::new();
+        for join_result in joined {
+            match join_result {
+                Ok((Ok(work_dir), mut ctx)) => {
+                    ctx.commit();
+                    work_dirs.push(work_dir);
+                }
+                Ok((Err(e), mut ctx)) => {
+                    ctx.commit();
+                    errors.push(e);
+                }
+                Err(_) => errors.push(anyhow::anyhow!("An SRAM generation thread panicked")),
+            }
+        }
+        for work_dir in work_dirs {
+            println!("Artifacts saved to: {:?}", work_dir);
+        }
+
+        if !errors.is_empty() {
+            let msg = errors
+                .iter()
+                .enumerate()
+                .map(|(i, e)| format!("  [{}] {:#}", i + 1, e))
+                .collect::<Vec<_>>()
+                .join("\n");
+            anyhow::bail!("{} SRAM(s) failed:\n{}", errors.len(), msg);
+        }
+    }
 
     Ok(())
 }
