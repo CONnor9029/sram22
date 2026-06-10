@@ -74,27 +74,31 @@ Options:
 
 ### Configuration
 
-SRAM22 generates memory blocks based on a TOML configuration file. An example configuration, showing all the available options, is shown below:
+SRAM22 generates memory blocks based on a TOML configuration file. Configurations are specified
+as an array of `[[sram]]` configurations, allowing up to multiple SRAMs to be generated.
 
 ```toml
+[[sram]]
 num_words = 64
 data_width = 32
 mux_ratio = 4
 write_size = 8
-# The `pex_level` flag is only available with a full installation.
-pex_level = "rcc"
+
+[[sram]]
+num_words = 256
+data_width = 64
+mux_ratio = 4
+write_size = 8
 ```
 
-To generate an SRAM using this configuration, put the above text into a file called
-`sram22_64x32m4w8/sram22.toml`, then run:
+Save this as `sram22.toml` and run:
 
 ```
-cd sram22_64x32m4w8
 sram22
 ```
 
-Add additional flags depending on what views you want to generate and what verification you want to run.
-If you do not have access to BWRC servers, most flags will not be available.
+Each `[[sram]]` block is generated independently. Output files are placed in subdirectories
+named after the SRAM (e.g. `build/sram22_64x32m4w8/`)
 
 The number of rows in the SRAM bitcell array is `num_words / mux_ratio`.
 The number of columns in the array is `data_width * mux_ratio`.
@@ -105,7 +109,10 @@ A valid configuration must have:
 * A power-of-two number of rows
 * At least 16 rows
 * At least 16 columns
-* `pex_level`: Must be `"r"`, `"c"`, `"rc"`, or `"rcc"`. If you do not have commercial plugins enabled, this option will be ignored.
+
+### LIB generation
+
+Sram22 supports The `--lib` flag generates Liberty (.lib) timing files for the tt/ss/ff PVT corners using Liberate or open-source interpolation. Open-Source generated libs are prone to a 3% error overestimate only for sram configurations with a data width between 8-128. 
 
 ### Contribution
 
