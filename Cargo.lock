@@ -3,18 +3,6 @@
 version = 4
 
 [[package]]
-name = "abstract_lef"
-version = "0.1.0"
-source = "git+ssh://git@bwrcrepo.eecs.berkeley.edu/rahulkumar/abstract_lef.git?branch=master#6c5a2b19e3876f833e81881f12d837b2ec3e6254"
-dependencies = [
- "derive_builder 0.11.2",
- "lazy_static",
- "serde",
- "tera",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "adler2"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -282,18 +270,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
-name = "calibre"
-version = "0.1.0"
-source = "git+ssh://git@bwrcrepo.eecs.berkeley.edu/rahulkumar/calibre.git?branch=master#8d68bd24eda17ed9a09d1bd93535deac8b2c14bc"
-dependencies = [
- "anyhow",
- "lazy_static",
- "regex",
- "serde",
- "tera",
-]
-
-[[package]]
 name = "cc"
 version = "1.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -394,10 +370,10 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 [[package]]
 name = "codegen"
 version = "0.1.0"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "darling 0.14.4",
- "itertools 0.10.5",
+ "itertools",
  "paste",
  "proc-macro-crate 1.3.1",
  "proc-macro2",
@@ -445,15 +421,6 @@ name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
-
-[[package]]
-name = "convert_case"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49"
-dependencies = [
- "unicode-segmentation",
-]
 
 [[package]]
 name = "core-foundation"
@@ -602,16 +569,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "darling"
-version = "0.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25ae13da2f202d56bd7f91c25fba009e7717a1e4a1cc98a76d844b65ae912e9d"
-dependencies = [
- "darling_core 0.23.0",
- "darling_macro 0.23.0",
-]
-
-[[package]]
 name = "darling_core"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -640,19 +597,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "darling_core"
-version = "0.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9865a50f7c335f53564bb694ef660825eb8610e0a53d3e11bf1b0d3df31e03b0"
-dependencies = [
- "ident_case",
- "proc-macro2",
- "quote",
- "strsim 0.11.1",
- "syn 2.0.101",
-]
-
-[[package]]
 name = "darling_macro"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -672,17 +616,6 @@ dependencies = [
  "darling_core 0.14.4",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "darling_macro"
-version = "0.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac3984ec7bd6cfa798e62b4a642426a5be0e68f9401cfc2a01e3fa9ea2fcdb8d"
-dependencies = [
- "darling_core 0.23.0",
- "quote",
- "syn 2.0.101",
 ]
 
 [[package]]
@@ -723,20 +656,11 @@ dependencies = [
 
 [[package]]
 name = "derive_builder"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d07adf7be193b71cc36b193d0f5fe60b918a3a9db4dad0449f57bcfd519704a3"
-dependencies = [
- "derive_builder_macro 0.11.2",
-]
-
-[[package]]
-name = "derive_builder"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d67778784b508018359cbc8696edb3db78160bab2c2a28ba7f56ef6932997f8"
 dependencies = [
- "derive_builder_macro 0.12.0",
+ "derive_builder_macro",
 ]
 
 [[package]]
@@ -746,18 +670,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2791ea3e372c8495c0bc2033991d76b512cd799d07491fbd6890124db9458bef"
 dependencies = [
  "darling 0.10.2",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "derive_builder_core"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f91d4cfa921f1c05904dc3c57b4a32c38aed3340cce209f3a6fd1478babafc4"
-dependencies = [
- "darling 0.14.4",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -777,16 +689,6 @@ dependencies = [
 
 [[package]]
 name = "derive_builder_macro"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f0314b72bed045f3a68671b3c86328386762c93f82d98c65c3cb5e5f573dd68"
-dependencies = [
- "derive_builder_core 0.11.2",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "derive_builder_macro"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebcda35c7a396850a55ffeac740804b40ffec779b98fffbb1738f4033f0ee79e"
@@ -801,7 +703,7 @@ version = "0.99.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6edb4b64a43d977b8e99788fe3a04d483834fba1215a7e02caa415b626497f7f"
 dependencies = [
- "convert_case 0.4.0",
+ "convert_case",
  "proc-macro2",
  "quote",
  "rustc_version",
@@ -891,28 +793,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa18ce2bc66555b3218614519ac839ddb759a7d6720732f979ef8d13be147ecd"
 dependencies = [
  "once_cell",
- "proc-macro2",
- "quote",
- "syn 2.0.101",
-]
-
-[[package]]
-name = "enumify"
-version = "0.2.2"
-source = "git+https://github.com/ucb-substrate/substrate2?branch=main#20db2f7b8ecba737a4b5ab01241e4e41708f833d"
-dependencies = [
- "enumify_macros",
-]
-
-[[package]]
-name = "enumify_macros"
-version = "0.3.2"
-source = "git+https://github.com/ucb-substrate/substrate2?branch=main#20db2f7b8ecba737a4b5ab01241e4e41708f833d"
-dependencies = [
- "convert_case 0.11.0",
- "darling 0.23.0",
- "macrotools",
- "proc-macro-error",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -1090,7 +970,7 @@ checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 [[package]]
 name = "gds21"
 version = "0.2.1"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "arcstr",
  "byteorder",
@@ -1344,15 +1224,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "itertools"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1422,19 +1293,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
-name = "liberate_mx"
-version = "0.1.0"
-dependencies = [
- "derive_builder 0.12.0",
- "lazy_static",
- "rust_decimal",
- "rust_decimal_macros",
- "serde",
- "tera",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "libloading"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1494,17 +1352,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "macrotools"
-version = "0.2.1"
-source = "git+https://github.com/ucb-substrate/substrate2?branch=main#20db2f7b8ecba737a4b5ab01241e4e41708f833d"
-dependencies = [
- "darling 0.23.0",
- "proc-macro2",
- "quote",
- "syn 2.0.101",
-]
-
-[[package]]
 name = "matchers"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1538,7 +1385,7 @@ dependencies = [
 [[package]]
 name = "ngspice"
 version = "0.0.1"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "anyhow",
  "lazy_static",
@@ -1949,30 +1796,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "proc-macro-error"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
-dependencies = [
- "proc-macro-error-attr",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
- "version_check",
-]
-
-[[package]]
-name = "proc-macro-error-attr"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
-dependencies = [
- "proc-macro2",
- "quote",
- "version_check",
-]
-
-[[package]]
 name = "proc-macro-hack"
 version = "0.5.20+deprecated"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1993,19 +1816,6 @@ version = "0.1.2"
 source = "git+https://github.com/rahulk29/psfparser.git?branch=master#e13bf5faf52b936e2075c0f80671abf5b90f026b"
 dependencies = [
  "anyhow",
- "float_eq",
- "num",
- "pest",
- "pest_derive",
-]
-
-[[package]]
-name = "psfparser"
-version = "0.1.5"
-source = "git+https://github.com/ucb-substrate/substrate2?branch=main#20db2f7b8ecba737a4b5ab01241e4e41708f833d"
-dependencies = [
- "anyhow",
- "enumify",
  "float_eq",
  "num",
  "pest",
@@ -2109,26 +1919,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom 0.2.16",
-]
-
-[[package]]
-name = "rayon"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb39b166781f92d482534ef4b4b1b2568f42613b53e5b6c160e24cfbfa30926d"
-dependencies = [
- "either",
- "rayon-core",
-]
-
-[[package]]
-name = "rayon-core"
-version = "1.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
-dependencies = [
- "crossbeam-deque",
- "crossbeam-utils",
 ]
 
 [[package]]
@@ -2480,19 +2270,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 
 [[package]]
-name = "sky130_commercial_pdk"
-version = "0.1.0"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
-dependencies = [
- "arcstr",
- "sky130_common_pdk",
- "substrate",
-]
-
-[[package]]
 name = "sky130_common_pdk"
 version = "0.1.0"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "arcstr",
  "subgeom",
@@ -2502,7 +2282,7 @@ dependencies = [
 [[package]]
 name = "sky130_open_pdk"
 version = "0.1.0"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "arcstr",
  "sky130_common_pdk",
@@ -2542,24 +2322,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7c388c1b5e93756d0c740965c41e8822f866621d41acbdf6336a6a168f8840c"
 
 [[package]]
-name = "spectre"
-version = "0.1.0"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
-dependencies = [
- "anyhow",
- "lazy_static",
- "log",
- "psfparser 0.1.5",
- "serde",
- "spice_rawfile",
- "substrate",
- "tera",
-]
-
-[[package]]
 name = "spice_rawfile"
 version = "0.0.1"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "nom",
  "serde",
@@ -2576,37 +2341,29 @@ checksum = "3278aafb315f972aa58d958e3f6b8ef60ceb7723bfedfbd00399c73ed0570583"
 name = "sram22"
 version = "0.2.0"
 dependencies = [
- "abstract_lef",
  "anyhow",
  "approx",
  "arcstr",
- "calibre",
  "clap",
  "codegen",
  "colored",
  "derive_builder 0.12.0",
  "grid",
  "indicatif",
- "itertools 0.10.5",
- "itertools 0.14.0",
+ "itertools",
  "lazy_static",
  "lef21",
- "liberate_mx",
  "log",
  "ngspice",
  "paste",
  "plotters",
- "psfparser 0.1.2",
- "rayon",
+ "psfparser",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",
  "serde_json",
  "serde_repr",
- "sky130_commercial_pdk",
  "sky130_open_pdk",
- "spectre",
- "sub_calibre",
  "subgeom",
  "substrate",
  "tempfile",
@@ -2643,20 +2400,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
-name = "sub_calibre"
-version = "0.0.1"
-source = "git+ssh://git@bwrcrepo.eecs.berkeley.edu/rohankumar/substrate_mentor_plugins.git?branch=main#ef3e83ddb980e31e563997d9d06d1134fff05869"
-dependencies = [
- "arcstr",
- "calibre",
- "derive_builder 0.12.0",
- "substrate",
-]
-
-[[package]]
 name = "subgeom"
 version = "0.1.0"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "array_map",
  "enum_dispatch",
@@ -2668,7 +2414,7 @@ dependencies = [
 [[package]]
 name = "sublut"
 version = "0.1.0"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "derive_builder 0.12.0",
  "serde",
@@ -2678,7 +2424,7 @@ dependencies = [
 [[package]]
 name = "subspice"
 version = "0.0.2"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "anyhow",
  "nom",
@@ -2689,7 +2435,7 @@ dependencies = [
 [[package]]
 name = "substrate"
 version = "0.1.0"
-source = "git+https://github.com/substrate-labs/substrate?branch=main#14d4597b4cfcedf43f1802ff8e14c0d4146d9548"
+source = "git+https://github.com/substrate-labs/substrate?branch=main#ab6a40deb778bc9f6d6b3e88bbd83f712f8b7ad4"
 dependencies = [
  "anyhow",
  "arcstr",
@@ -2703,7 +2449,7 @@ dependencies = [
  "flexbuffers",
  "gds21",
  "grid",
- "itertools 0.10.5",
+ "itertools",
  "lazy_static",
  "log",
  "pathfinding",
@@ -3063,12 +2809,6 @@ name = "unicode-linebreak"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b09c83c3c29d37506a3e260c08c03743a6bb66a9cd432c6934ab501a190571f"
-
-[[package]]
-name = "unicode-segmentation"
-version = "1.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9629274872b2bfaf8d66f5f15725007f635594914870f65218920345aa11aa8c"
 
 [[package]]
 name = "unicode-width"
