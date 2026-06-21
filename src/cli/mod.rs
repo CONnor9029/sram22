@@ -31,11 +31,27 @@ pub const BANNER: &str = r"
 SRAM22 v0.2
 ";
 
-fn is_already_built(work_dir: &std::path::Path, name: &str) -> bool {
-    out_spice(work_dir, name).exists()
+fn is_already_built(work_dir: &std::path::Path, name: &str, check_lib: bool) -> bool {
+    let layout_done = out_spice(work_dir, name).exists()
         && out_gds(work_dir, name).exists()
         && out_verilog(work_dir, name).exists()
-        && out_lef(work_dir, name).exists()
+        && out_lef(work_dir, name).exists();
+
+    if !layout_done {
+        return false;
+    }
+
+    if check_lib {
+        let lib_suffixes = ["tt_025C_1v80", "ss_100C_1v60", "ff_n40C_1v95"];
+        let libs_done = lib_suffixes.iter().all(|suffix| {
+            work_dir.join(format!("{}_{}.lib", name, suffix)).exists()
+        });
+        if !libs_done {
+            return false;
+        }
+    }
+
+    true
 }
 
 pub fn run() -> Result<()> {
@@ -95,7 +111,7 @@ pub fn run() -> Result<()> {
         std::fs::create_dir_all(&work_dir)?;
         let work_dir = canonicalize(work_dir)?;
 
-        if !is_already_built(&work_dir, &plan.sram_params.name()) {
+        if !is_already_built(&work_dir, &plan.sram_params.name(), tasks.contains(&TaskKey::GenerateLib)) {
             let mut ctx = StepContext::new(&tasks);
             ctx.finish(TaskKey::GeneratePlan);
 
@@ -139,7 +155,7 @@ pub fn run() -> Result<()> {
             .zip(configs.into_iter())
             .filter_map(|(plan, config)| {
                 let work_dir_check = build_dir.join(plan.sram_params.name().as_str());
-                if is_already_built(&work_dir_check, &plan.sram_params.name()) {
+                if is_already_built(&work_dir_check, &plan.sram_params.name(), tasks.contains(&TaskKey::GenerateLib)) {
                     return None;
                 }
 

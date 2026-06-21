@@ -8,6 +8,15 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
+/// Embedded timing characterization data indexed by (num_words, mux_ratio, write_size).
+/// Each entry corresponds to `timingdata/{num_words}m{mux_ratio}w{write_size}.json`.
+/// Add a new row here when a new characterization dataset is available.
+static TIMING_DATA: &[(usize, usize, usize, &[u8])] = &[
+    (64,  4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/64m4w8.json"))),
+    (128, 8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/128m8w8.json"))),
+    (256, 4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/256m4w8.json"))),
+];
+
 /// A concrete plan for an SRAM.
 ///
 /// Has a 1-1 mapping with a schematic.
@@ -294,11 +303,16 @@ pub fn execute_plan(params: ExecutePlanParams) -> Result<()> {
                 plan.sram_params.data_width()
             );
         } else {
-            let json_bytes: &[u8] = match (plan.sram_params.mux_ratio(), plan.sram_params.num_words()) {
-                (8, _) => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/lib_timing_data_m8.json")),
-                (_, 256) => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/lib_timing_data_256m4.json")),
-                _ => include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/lib_timing_data.json")),
-            };
+            let nw = plan.sram_params.num_words();
+            let mx = plan.sram_params.mux_ratio();
+            let ws = plan.sram_params.wmask_granularity();
+            let json_bytes: &[u8] = TIMING_DATA.iter()
+                .find(|(n, m, w, _)| *n == nw && *m == mx && *w == ws)
+                .map(|(_, _, _, b)| *b)
+                .ok_or_else(|| anyhow::anyhow!(
+                    "no timing data for {}m{}w{} — add timingdata/{}m{}w{}.json to the repo",
+                    nw, mx, ws, nw, mx, ws
+                ))?;
             for pvt in [PvtCorner::tt(), PvtCorner::ss(), PvtCorner::ff()] {
                 let model = LookupModel::from_json(json_bytes, &pvt.name)?;
                 let suffix = pvt.file_suffix();

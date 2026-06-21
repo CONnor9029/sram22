@@ -51,7 +51,7 @@ impl PvtCorner {
         let t = if self.temperature < 0.0 {
             format!("n{}C", (-self.temperature) as i64)
         } else {
-            format!("{}C", self.temperature as i64)
+            format!("{:03}C", self.temperature as i64)
         };
         let v = format!("{:.2}", self.voltage).replace('.', "v");
         format!("{}_{}_{}", self.name, t, v)
@@ -177,14 +177,21 @@ fn basis_log3(dw: f64)          -> [f64; 4] { [1.0, dw.ln(), dw.ln().powi(2), 0.
 fn basis_lin4_log_log2(dw: f64) -> [f64; 4] { let l = dw.ln(); [1.0, dw, l, l.powi(2)] }
 
 /// One fitted entry: `eval(dw) = sum(params[k] * basis(dw)[k])`.
-#[derive(Copy, Clone)]
+/// At characterized training points the original measured value is returned exactly;
+/// the fitted polynomial is only used for interpolated (non-training) dw values.
+#[derive(Clone)]
 struct FitEntry {
-    basis:  fn(f64) -> [f64; 4],
-    params: [f64; 4],
+    basis:    fn(f64) -> [f64; 4],
+    params:   [f64; 4],
+    training: Vec<(f64, f64)>,  // (dw, val) pairs stored for exact-match lookup
 }
 
 impl FitEntry {
-    fn eval(self, dw: f64) -> f64 {
+    fn eval(&self, dw: f64) -> f64 {
+        // Return the exact characterized value when queried at a training point.
+        if let Some(&(_, y)) = self.training.iter().find(|&&(x, _)| x == dw) {
+            return y;
+        }
         let x = (self.basis)(dw);
         x[0] * self.params[0]
             + x[1] * self.params[1]
@@ -233,7 +240,8 @@ impl FitEntry {
             .fold(0.0_f64, f64::max);
         p[0] += lift2;
 
-        Self { basis, params: p }
+        let training = dws.iter().zip(vals).map(|(&x, &y)| (x, y)).collect();
+        Self { basis, params: p, training }
     }
 }
 
@@ -297,20 +305,30 @@ fn eval_7x7(tbl: &[[FitEntry; 7]; 7], dw: f64) -> [[f64; 7]; 7] {
 /// For the SS corner, Liberate MX fails to converge at dw=1024+ so those entries
 /// are estimated using the SS/TT ratio (~1.828) computed from the valid dw range.
 pub struct LookupModel {
-    cell_rise:       [[FitEntry; 7]; 7],
-    cell_fall:       [[FitEntry; 7]; 7],
-    rise_transition: [[FitEntry; 7]; 7],
-    fall_transition: [[FitEntry; 7]; 7],
-    addr_hold_rise:  [[FitEntry; 7]; 7],
-    addr_hold_fall:  [[FitEntry; 7]; 7],
-    din_hold_rise:   [[FitEntry; 7]; 7],
-    din_hold_fall:   [[f64; 7]; 7],
-    ce_hold_rise:    [[FitEntry; 7]; 7],
-    ce_hold_fall:    [[FitEntry; 7]; 7],
-    we_hold_rise:    [[FitEntry; 7]; 7],
-    we_hold_fall:    [[FitEntry; 7]; 7],
-    rstb_hold_rise:  [[FitEntry; 7]; 7],
-    rstb_hold_fall:  [[FitEntry; 7]; 7],
+    cell_rise:        [[FitEntry; 7]; 7],
+    cell_fall:        [[FitEntry; 7]; 7],
+    rise_transition:  [[FitEntry; 7]; 7],
+    fall_transition:  [[FitEntry; 7]; 7],
+    addr_hold_rise:   [[FitEntry; 7]; 7],
+    addr_hold_fall:   [[FitEntry; 7]; 7],
+    addr_setup_rise:  [[FitEntry; 7]; 7],
+    addr_setup_fall:  [[FitEntry; 7]; 7],
+    din_hold_rise:    [[FitEntry; 7]; 7],
+    din_hold_fall:    [[f64; 7]; 7],
+    din_setup_rise:   [[FitEntry; 7]; 7],
+    din_setup_fall:   [[FitEntry; 7]; 7],
+    ce_hold_rise:     [[FitEntry; 7]; 7],
+    ce_hold_fall:     [[FitEntry; 7]; 7],
+    ce_setup_rise:    [[FitEntry; 7]; 7],
+    ce_setup_fall:    [[FitEntry; 7]; 7],
+    we_hold_rise:     [[FitEntry; 7]; 7],
+    we_hold_fall:     [[FitEntry; 7]; 7],
+    we_setup_rise:    [[FitEntry; 7]; 7],
+    we_setup_fall:    [[FitEntry; 7]; 7],
+    rstb_hold_rise:   [[FitEntry; 7]; 7],
+    rstb_hold_fall:   [[FitEntry; 7]; 7],
+    rstb_setup_rise:  [[FitEntry; 7]; 7],
+    rstb_setup_fall:  [[FitEntry; 7]; 7],
     mpw_rise:        [FitEntry; 7],
     mpw_fall:        [FitEntry; 7],
     min_period:      Vec<(u32, [f64; 7])>,
@@ -418,20 +436,30 @@ impl LookupModel {
         };
 
         Ok(Self {
-            cell_rise:       fit7("cell_rise",       basis_lin4_sqrt_log),
-            cell_fall:       fit7("cell_fall",       basis_lin4_sqrt_log),
-            rise_transition: fit7("rise_transition", basis_lin3_cbrt),
-            fall_transition: fit7("fall_transition", basis_lin3_sqrt),
-            addr_hold_rise:  fit7("addr_hold_rise",  basis_lin3_sqrt),
-            addr_hold_fall:  fit7("addr_hold_fall",  basis_log2),
-            din_hold_rise:   fit7("din_hold_rise",   basis_lin2),
-            din_hold_fall:   max7("din_hold_fall"),
-            ce_hold_rise:    fit7("ce_hold_rise",    basis_log3),
-            ce_hold_fall:    fit7("ce_hold_fall",    basis_lin3_sqrt),
-            we_hold_rise:    fit7("we_hold_rise",    basis_log3),
-            we_hold_fall:    fit7("we_hold_fall",    basis_lin3_sqrt),
-            rstb_hold_rise:  fit7("rstb_hold_rise",  basis_log3),
-            rstb_hold_fall:  fit7("rstb_hold_fall",  basis_lin4_log_log2),
+            cell_rise:        fit7("cell_rise",        basis_lin4_sqrt_log),
+            cell_fall:        fit7("cell_fall",        basis_lin4_sqrt_log),
+            rise_transition:  fit7("rise_transition",  basis_lin3_cbrt),
+            fall_transition:  fit7("fall_transition",  basis_lin3_sqrt),
+            addr_hold_rise:   fit7("addr_hold_rise",   basis_lin3_sqrt),
+            addr_hold_fall:   fit7("addr_hold_fall",   basis_log2),
+            addr_setup_rise:  fit7("addr_setup_rise",  basis_lin3_sqrt),
+            addr_setup_fall:  fit7("addr_setup_fall",  basis_lin3_sqrt),
+            din_hold_rise:    fit7("din_hold_rise",    basis_lin2),
+            din_hold_fall:    max7("din_hold_fall"),
+            din_setup_rise:   fit7("din_setup_rise",   basis_lin2),
+            din_setup_fall:   fit7("din_setup_fall",   basis_lin2),
+            ce_hold_rise:     fit7("ce_hold_rise",     basis_log3),
+            ce_hold_fall:     fit7("ce_hold_fall",     basis_lin3_sqrt),
+            ce_setup_rise:    fit7("ce_setup_rise",    basis_log3),
+            ce_setup_fall:    fit7("ce_setup_fall",    basis_lin3_sqrt),
+            we_hold_rise:     fit7("we_hold_rise",     basis_log3),
+            we_hold_fall:     fit7("we_hold_fall",     basis_lin3_sqrt),
+            we_setup_rise:    fit7("we_setup_rise",    basis_log3),
+            we_setup_fall:    fit7("we_setup_fall",    basis_lin3_sqrt),
+            rstb_hold_rise:   fit7("rstb_hold_rise",   basis_log3),
+            rstb_hold_fall:   fit7("rstb_hold_fall",   basis_lin4_log_log2),
+            rstb_setup_rise:  fit7("rstb_setup_rise",  basis_log3),
+            rstb_setup_fall:  fit7("rstb_setup_fall",  basis_lin4_log_log2),
             mpw_rise:        fit1("mpw_rise",        basis_lin3_cbrt),
             mpw_fall:        fit1("mpw_fall",        basis_log3),
             min_period:      min_period_snaps,
@@ -472,8 +500,26 @@ impl TimingModel for LookupModel {
         }
     }
 
-    fn setup_rise(&self, _: &SramParams, _: PinRole) -> [[f64; 7]; 7] { [[0.0; 7]; 7] }
-    fn setup_fall(&self, _: &SramParams, _: PinRole) -> [[f64; 7]; 7] { [[0.0; 7]; 7] }
+    fn setup_rise(&self, p: &SramParams, pin: PinRole) -> [[f64; 7]; 7] {
+        let dw = p.data_width() as f64;
+        match pin {
+            PinRole::Addr | PinRole::Clk  => eval_7x7(&self.addr_setup_rise, dw),
+            PinRole::Din  | PinRole::Wmask => eval_7x7(&self.din_setup_rise, dw),
+            PinRole::Ce    => eval_7x7(&self.ce_setup_rise, dw),
+            PinRole::We    => eval_7x7(&self.we_setup_rise, dw),
+            PinRole::Rstb  => eval_7x7(&self.rstb_setup_rise, dw),
+        }
+    }
+    fn setup_fall(&self, p: &SramParams, pin: PinRole) -> [[f64; 7]; 7] {
+        let dw = p.data_width() as f64;
+        match pin {
+            PinRole::Addr | PinRole::Clk  => eval_7x7(&self.addr_setup_fall, dw),
+            PinRole::Din  | PinRole::Wmask => eval_7x7(&self.din_setup_fall, dw),
+            PinRole::Ce    => eval_7x7(&self.ce_setup_fall, dw),
+            PinRole::We    => eval_7x7(&self.we_setup_fall, dw),
+            PinRole::Rstb  => eval_7x7(&self.rstb_setup_fall, dw),
+        }
+    }
 
     fn cell_rise(&self, p: &SramParams) -> [[f64; 7]; 7] {
         eval_7x7(&self.cell_rise, p.data_width() as f64)
@@ -534,8 +580,8 @@ impl TimingModel for LookupModel {
     fn receiver_cap_1_fall(&self, _: &SramParams, _: PinRole) -> [f64; 7] { [0.0; 7] }
     fn receiver_cap_2_fall(&self, _: &SramParams, _: PinRole) -> [f64; 7] { [0.0; 7] }
 
-    fn ccs_rise(&self, p: &SramParams) -> Vec<CcsVector> { PlaceholderModel.ccs_rise(p) }
-    fn ccs_fall(&self, p: &SramParams) -> Vec<CcsVector> { PlaceholderModel.ccs_fall(p) }
+    fn ccs_rise(&self, _: &SramParams) -> Vec<CcsVector> { vec![] }
+    fn ccs_fall(&self, _: &SramParams) -> Vec<CcsVector> { vec![] }
     fn clk_power_rise(&self, _: &SramParams, _: &str) -> [f64; 7] { [0.0; 7] }
     fn clk_power_fall(&self, _: &SramParams, _: &str) -> [f64; 7] { [0.0; 7] }
 }
@@ -649,6 +695,7 @@ impl W {
         };
         self.block("timing ()", |w| {
             w.attr_q("related_pin", "clk");
+            w.attr("sdf_edges", "both_edges");
             w.attr("timing_type", ttype);
             w.lut_2d("rise_constraint", "constraint_template_7x7", &SLEW_IDX, &SLEW_IDX, &rise);
             w.lut_2d("fall_constraint", "constraint_template_7x7", &SLEW_IDX, &SLEW_IDX, &fall);
@@ -986,8 +1033,8 @@ fn write_liberty(p: &SramParams, pvt: &PvtCorner, m: &dyn TimingModel) -> String
                     w.lut_2d("rise_transition", "delay_template_7x7", &SLEW_IDX, &LOAD_IDX, &rise_tr);
                     w.lut_2d("cell_fall", "delay_template_7x7", &SLEW_IDX, &LOAD_IDX, &cell_f);
                     w.lut_2d("fall_transition", "delay_template_7x7", &SLEW_IDX, &LOAD_IDX, &fall_tr);
-                    w.ccs_arcs("rise", &ccs_r);
-                    w.ccs_arcs("fall", &ccs_f);
+                    if !ccs_r.is_empty() { w.ccs_arcs("rise", &ccs_r); }
+                    if !ccs_f.is_empty() { w.ccs_arcs("fall", &ccs_f); }
                 });
             });
 
