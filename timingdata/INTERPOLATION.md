@@ -50,23 +50,6 @@ Liberate MX running SPICE simulation.
 The top level is keyed by PVT corner. Each corner maps `data_width` (as a string) to
 a timing snapshot containing all Liberty tables for that configuration.
 
-### Adding a new configuration
-
-1. Run Liberate MX for the target `(num_words, mux_ratio, write_size)` at all 7 `data_width`
-   breakpoints and all 3 corners.
-2. Run the extraction script to produce the JSON (adapt `NUM_WORDS`, `MUX_RATIO`,
-   `WRITE_SIZE` at the top of the file):
-   ```
-   python3 timingdata/extract_lib2json.py
-   ```
-3. Place the output in this directory as `{num_words}m{mux_ratio}w{write_size}.json`.
-4. Add one entry to `TIMING_DATA` in `src/plan/mod.rs`:
-   ```rust
-   (512, 4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/512m4w8.json"))),
-   ```
-5. Rebuild.
-
----
 
 ## Configuration Selection (`src/plan/mod.rs`)
 
