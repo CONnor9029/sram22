@@ -12,9 +12,17 @@ use std::sync::Arc;
 /// Each entry corresponds to `timingdata/{num_words}m{mux_ratio}w{write_size}.json`.
 /// Add a new row here when a new characterization dataset is available.
 static TIMING_DATA: &[(usize, usize, usize, &[u8])] = &[
-    (64,  4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/64m4w8.json"))),
-    (128, 8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/128m8w8.json"))),
-    (256, 4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/256m4w8.json"))),
+    (64,   4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/64m4w8.json"))),
+    (128,  4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/128m4w8.json"))),
+    (128,  8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/128m8w8.json"))),
+    (256,  4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/256m4w8.json"))),
+    (256,  8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/256m8w8.json"))),
+    (512,  4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/512m4w8.json"))),
+    (512,  8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/512m8w8.json"))),
+    (1024, 4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/1024m4w8.json"))),
+    (1024, 8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/1024m8w8.json"))),
+    (2048, 4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/2048m4w8.json"))),
+    (2048, 8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/2048m8w8.json"))),
 ];
 
 /// A concrete plan for an SRAM.
@@ -39,6 +47,8 @@ pub enum TaskKey {
     #[cfg(feature = "commercial")]
     RunPex,
     GenerateLib,
+    #[cfg(feature = "commercial")]
+    GenerateLibMx,
     #[cfg(feature = "commercial")]
     All,
 }
@@ -217,7 +227,7 @@ pub fn execute_plan(params: ExecutePlanParams) -> Result<()> {
         let sram_params = plan.sram_params.clone();
         try_execute_task!(
             params.tasks,
-            TaskKey::GenerateLib,
+            TaskKey::GenerateLibMx,
             {
                 use substrate::schematic::netlist::NetlistPurpose;
 
@@ -297,9 +307,8 @@ pub fn execute_plan(params: ExecutePlanParams) -> Result<()> {
     if params.tasks.contains(&TaskKey::GenerateLib) {
         use crate::lib_gen::{LibGenParams, LookupModel, PvtCorner};
         if plan.sram_params.data_width() > 128 {
-            eprintln!(
-                "warning: lib generation is only supported for data_width ≤ 128 \
-                 in non-commercial mode (got {}); skipping",
+            anyhow::bail!(
+                "lib generation requires data_width ≤ 128 in non-commercial mode (got {})",
                 plan.sram_params.data_width()
             );
         } else {
@@ -325,7 +334,6 @@ pub fn execute_plan(params: ExecutePlanParams) -> Result<()> {
                     output: lib_path,
                 })?;
             }
-            #[cfg(not(feature = "commercial"))]
             try_finish_task!(ctx, TaskKey::GenerateLib);
         }
     }

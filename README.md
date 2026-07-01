@@ -89,6 +89,8 @@ num_words = 256
 data_width = 64
 mux_ratio = 4
 write_size = 8
+# The `pex_level` flag is only available with a full installation.
+pex_level = "rcc"
 ```
 
 Save this as `sram22.toml` and run:
@@ -112,7 +114,7 @@ A valid configuration must have:
 
 ### LIB generation
 
-Sram22 supports The `--lib` flag generates Liberty (.lib) timing files for the tt/ss/ff PVT corners using Liberate or open-source interpolation. Open-Source generated libs are prone to a 2% error overestimate only for sram configurations with a data width between 8-128. 
+SRAM22 supports The `--lib` flag generates Liberty (.lib) timing files for the tt/ss/ff PVT corners using Liberate or open-source interpolation. Open-Source generated libs are prone to a 2% error overestimate only for sram configurations with a data width between 8-128. 
 
 ### Contribution
 

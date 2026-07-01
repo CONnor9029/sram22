@@ -31,6 +31,17 @@ pub const BANNER: &str = r"
 SRAM22 v0.2
 ";
 
+fn wants_lib(tasks: &HashSet<TaskKey>) -> bool {
+    if tasks.contains(&TaskKey::GenerateLib) {
+        return true;
+    }
+    #[cfg(feature = "commercial")]
+    if tasks.contains(&TaskKey::GenerateLibMx) || tasks.contains(&TaskKey::All) {
+        return true;
+    }
+    false
+}
+
 fn is_already_built(work_dir: &std::path::Path, name: &str, check_lib: bool) -> bool {
     let layout_done = out_spice(work_dir, name).exists()
         && out_gds(work_dir, name).exists()
@@ -83,10 +94,12 @@ pub fn run() -> Result<()> {
         (args.lvs, TaskKey::RunLvs),
         #[cfg(feature = "commercial")]
         (
-            args.pex || (configs.len() == 1 && args.lib && configs[0].pex_level.is_some()),
+            args.pex || (configs.len() == 1 && args.liberate && configs[0].pex_level.is_some()),
             TaskKey::RunPex,
         ),
         (args.lib, TaskKey::GenerateLib),
+        #[cfg(feature = "commercial")]
+        (args.liberate, TaskKey::GenerateLibMx),
         #[cfg(feature = "commercial")]
         (args.all, TaskKey::All),
     ]
@@ -111,7 +124,7 @@ pub fn run() -> Result<()> {
         std::fs::create_dir_all(&work_dir)?;
         let work_dir = canonicalize(work_dir)?;
 
-        if !is_already_built(&work_dir, &plan.sram_params.name(), tasks.contains(&TaskKey::GenerateLib)) {
+        if !is_already_built(&work_dir, &plan.sram_params.name(), wants_lib(&tasks)) {
             let mut ctx = StepContext::new(&tasks);
             ctx.finish(TaskKey::GeneratePlan);
 
@@ -155,7 +168,7 @@ pub fn run() -> Result<()> {
             .zip(configs.into_iter())
             .filter_map(|(plan, config)| {
                 let work_dir_check = build_dir.join(plan.sram_params.name().as_str());
-                if is_already_built(&work_dir_check, &plan.sram_params.name(), tasks.contains(&TaskKey::GenerateLib)) {
+                if is_already_built(&work_dir_check, &plan.sram_params.name(), wants_lib(&tasks)) {
                     return None;
                 }
 

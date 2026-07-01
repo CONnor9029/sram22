@@ -21,10 +21,14 @@ pub struct Args {
     #[arg(short, long)]
     pub output_dir: Option<PathBuf>,
 
-    /// Generate LIB (setup, hold, and delay timing information).
-    /// Uses Liberate MX with the `commercial` feature, otherwise uses the open-source lib generator.
+    /// Generate LIB (setup, hold, and delay timing information) using the open-source interpolation model.
     #[arg(long)]
     pub lib: bool,
+
+    /// Generate LIB using Liberate MX SPICE simulation (requires full installation).
+    #[cfg(feature = "commercial")]
+    #[arg(long)]
+    pub liberate: bool,
 
     /// Run DRC using Calibre.
     #[cfg(feature = "commercial")]
