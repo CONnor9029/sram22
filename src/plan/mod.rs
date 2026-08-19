@@ -7,34 +7,107 @@ use anyhow::bail;
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
-#[cfg(feature = "commercial")]
-use std::sync::Mutex;
 
-/// Serializes PEX extraction and Liberate MX characterization across
-/// concurrently-building SRAM configurations, so at most one configuration's
-/// heavy backend work is in flight at a time. PEX (Calibre) is memory/CPU-
-/// heavy per run — running it for many configurations at once can crash the
-/// server. Liberate MX is additionally license-gated (3 licenses per
-/// configuration, one per corner). Configurations that only run the
-/// open-source interpolation model skip this slot and stay concurrent.
-#[cfg(feature = "commercial")]
-static HEAVY_BACKEND_SLOT: Mutex<()> = Mutex::new(());
-
-/// Embedded timing characterization data indexed by (num_words, mux_ratio, write_size).
-/// Each entry corresponds to `timingdata/{num_words}m{mux_ratio}w{write_size}.json`.
-/// Add a new row here when a new characterization dataset is available.
 static TIMING_DATA: &[(usize, usize, usize, &[u8])] = &[
-    (64,   4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/64m4w8.json"))),
-    (128,  4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/128m4w8.json"))),
-    (128,  8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/128m8w8.json"))),
-    (256,  4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/256m4w8.json"))),
-    (256,  8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/256m8w8.json"))),
-    (512,  4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/512m4w8.json"))),
-    (512,  8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/512m8w8.json"))),
-    (1024, 4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/1024m4w8.json"))),
-    (1024, 8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/1024m8w8.json"))),
-    (2048, 4, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/2048m4w8.json"))),
-    (2048, 8, 8, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/timingdata/2048m8w8.json"))),
+    (
+        64,
+        4,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/64m4w8.json"
+        )),
+    ),
+    (
+        128,
+        4,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/128m4w8.json"
+        )),
+    ),
+    (
+        128,
+        8,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/128m8w8.json"
+        )),
+    ),
+    (
+        256,
+        4,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/256m4w8.json"
+        )),
+    ),
+    (
+        256,
+        8,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/256m8w8.json"
+        )),
+    ),
+    (
+        512,
+        4,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/512m4w8.json"
+        )),
+    ),
+    (
+        512,
+        8,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/512m8w8.json"
+        )),
+    ),
+    (
+        1024,
+        4,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/1024m4w8.json"
+        )),
+    ),
+    (
+        1024,
+        8,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/1024m8w8.json"
+        )),
+    ),
+    (
+        2048,
+        4,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/2048m4w8.json"
+        )),
+    ),
+    (
+        2048,
+        8,
+        8,
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/timingdata/2048m8w8.json"
+        )),
+    ),
 ];
 
 /// A concrete plan for an SRAM.
@@ -70,8 +143,6 @@ pub struct ExecutePlanParams<'a> {
     pub ctx: Option<&'a mut StepContext>,
     #[cfg(feature = "commercial")]
     pub pex_level: Option<calibre::pex::PexLevel>,
-    /// When true, generate the LIB with Liberate MX; otherwise use the
-    /// open-source interpolation model. Set by `--liberate`/`--all`.
     #[cfg(feature = "commercial")]
     pub use_liberate: bool,
 }
@@ -208,15 +279,6 @@ pub fn execute_plan(params: ExecutePlanParams) -> Result<()> {
         let pex_source_path = out_spice(&pex_dir, "schematic");
         let pex_out_path = out_spice(&pex_dir, "schematic.pex");
 
-        // Held while PEX and/or Liberate MX run, so a given SRAM's heavy-backend
-        // work completes atomically before the next SRAM's begins. Lightweight
-        // runs (interpolation only, no PEX) skip the slot and stay concurrent.
-        let _heavy_backend_slot = if params.pex_level.is_some() || params.use_liberate {
-            Some(HEAVY_BACKEND_SLOT.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
-        } else {
-            None
-        };
-
         if params.pex_level.is_some() {
             sctx.write_schematic_to_file_for_purpose::<Sram>(
                 &plan.sram_params,
@@ -237,14 +299,15 @@ pub fn execute_plan(params: ExecutePlanParams) -> Result<()> {
                 ground_net: "vss".to_string(),
             })?;
             if !pex_out_path.exists() {
-                bail!("PEX failed: no output netlist produced at {:?}", pex_out_path);
+                bail!(
+                    "PEX failed: no output netlist produced at {:?}",
+                    pex_out_path
+                );
             }
             try_finish_task!(ctx, TaskKey::RunPex);
         }
 
         if params.tasks.contains(&TaskKey::GenerateLib) {
-            // Default to the open-source interpolation model; only invoke
-            // Liberate MX when --liberate/--all was passed.
             if params.use_liberate {
                 use substrate::schematic::netlist::NetlistPurpose;
 
@@ -331,11 +394,8 @@ pub fn execute_plan(params: ExecutePlanParams) -> Result<()> {
     Ok(())
 }
 
-/// Generate LIB timing files for all PVT corners using the open-source
-/// interpolation model. This is the default LIB path in every build; a
-/// commercial build only skips it when `--liberate` selects Liberate MX.
 fn generate_interpolated_lib(work_dir: &Path, sram_params: &SramParams) -> Result<()> {
-    use crate::lib_gen::{LibGenParams, LookupModel, PvtCorner};
+    use crate::liberty::{LibGenParams, LookupModel, PvtCorner};
     if sram_params.data_width() > 128 {
         anyhow::bail!(
             "open-source lib generation requires data_width ≤ 128 (got {})",
@@ -345,20 +405,28 @@ fn generate_interpolated_lib(work_dir: &Path, sram_params: &SramParams) -> Resul
     let nw = sram_params.num_words();
     let mx = sram_params.mux_ratio();
     let ws = sram_params.wmask_granularity();
-    let json_bytes: &[u8] = TIMING_DATA.iter()
+    let json_bytes: &[u8] = TIMING_DATA
+        .iter()
         .find(|(n, m, w, _)| *n == nw && *m == mx && *w == ws)
         .map(|(_, _, _, b)| *b)
-        .ok_or_else(|| anyhow::anyhow!(
-            "no timing data for {}m{}w{} — add timingdata/{}m{}w{}.json to the repo",
-            nw, mx, ws, nw, mx, ws
-        ))?;
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "no timing data for {}m{}w{} — add timingdata/{}m{}w{}.json to the repo",
+                nw,
+                mx,
+                ws,
+                nw,
+                mx,
+                ws
+            )
+        })?;
     let name = sram_params.name();
     for pvt in [PvtCorner::tt(), PvtCorner::ss(), PvtCorner::ff()] {
         let model = LookupModel::from_json(json_bytes, &pvt.name)?;
         let suffix = pvt.file_suffix();
         let lib_name = format!("{}_{}", name, suffix);
         let lib_path = crate::paths::out_lib(work_dir, &lib_name);
-        crate::lib_gen::generate_sram_lib(&LibGenParams {
+        crate::liberty::generate_sram_lib(&LibGenParams {
             sram: sram_params,
             pvt,
             model: &model,

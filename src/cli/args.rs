@@ -41,4 +41,11 @@ pub struct Args {
     /// Run all available steps.
     #[arg(short, long)]
     pub all: bool,
+
+    /// Maximum number of SRAMs to generate concurrently. Defaults to no limit
+    /// (all at once). With a commercial install each also runs licensed,
+    /// memory-intensive PEX and Liberate MX steps, so cap this if your licenses
+    /// or compute are limited.
+    #[arg(short = 'p', long)]
+    pub parallel: Option<usize>,
 }

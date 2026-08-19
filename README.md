@@ -67,11 +67,16 @@ Options:
       --drc                      Run DRC using Calibre
       --lvs                      Run LVS using Calibre
   -a, --all                      Run all available steps
+  -p, --parallel <PARALLEL>      Max number of SRAMs to generate concurrently [default: no limit]
   -h, --help                     Print help information
   -V, --version                  Print version information
 ```
 
 `--liberate`, `--drc`, `--lvs`, and `--all` are only available with a full (commercial) installation.
+
+By default all SRAMs are generated concurrently. Pass `--parallel` (or `-p`) to cap how many
+run at once — useful in a commercial install, where each SRAM also runs PEX and Liberate MX
+steps that invoke licensed tools and are memory-intensive.
 
 ### Configuration
 
@@ -122,10 +127,11 @@ interpolated LIBs carry a conservative overestimate of up to 2% for SRAM configu
 with `data_width` between 8 and 128.  `data_width` outside that range is not supported by
 the open-source model and will produce an error.
 
-With a full BWRC installation, passing `--liberate` (or `--all`) instead characterizes the
-LIB with Liberate MX running SPICE simulation; interpolation is skipped in that case. If a
-config also has `pex_level` set, Liberate MX uses the extracted netlist; otherwise it falls
-back to the plain SPICE netlist.
+With a full BWRC installation, passing `--liberate` instead characterizes the LIB with
+Liberate MX running SPICE simulation; interpolation is skipped in that case. `--all` does
+not select Liberate MX — it still generates the LIB by interpolation. If a config also has
+`pex_level` set, Liberate MX uses the extracted netlist; otherwise it falls back to the
+plain SPICE netlist.
 
 ### Contribution
 
